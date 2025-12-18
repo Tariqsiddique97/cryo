@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cryo Tank Calculator</title>
+
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#0066cc" />
+
+    <!-- iOS home-screen icon (Safari ignores manifest icons) -->
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon-180.png" sizes="180x180" />
+
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+
+    <!-- (Optional) favicon for desktop browsers -->
+    <link rel="icon" href="/icons/icon-192.png" sizes="192x192" />
+
+    <style>
+      /* Splash */
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+        background: linear-gradient(180deg, #003366, #0066cc);
+        color: #fff;
+        overflow: hidden;
+      }
+      #splash {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        z-index: 1000;
+        animation: fadeOut 1s ease 3s forwards;
+      }
+      @keyframes fadeOut {
+        to {
+          opacity: 0;
+          visibility: hidden;
+        }
+      }
+      h1 {
+        font-size: 2em;
+        margin-bottom: 0.3em;
+      }
+      h2 {
+        font-size: 1.2em;
+        font-weight: 500;
+        margin: 0.2em 0 0.8em 0;
+        opacity: 0.95;
+      }
+      p {
+        font-size: 0.9em;
+        opacity: 0.8;
+        margin: 0 0 1.5em 0;
+      }
+      h1,
+      h2,
+      p {
+        max-width: 85%;
+      }
+      img.icon {
+        width: 120px;
+        height: auto;
+        margin: 0.5em 0 0.7em 0;
+        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+      }
+      #app {
+        opacity: 0;
+        transition: opacity 1s ease;
+      }
+      body.splash-done #app {
+        opacity: 1;
+      }
+      iframe {
+        border: none;
+        width: 100%;
+        height: 100vh;
+      }
+    </style>
+
+    <script>
+      // Register service worker early
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker.register("/sw.js");
+        });
+      }
+    </script>
+  </head>
+  <body>
+    <!-- Splash -->
+    <div id="splash">
+      <h1>Cryo Tank Calculator</h1>
+      <img src="/icons/icon-192.png" alt="Cryo Calculator Icon" class="icon" />
+      <h2>Offload smarter. Calibrate faster. Work safer.</h2>
+      <p>Precision cryogenic transfer tool for drivers and technicians</p>
+    </div>
+
+    <!-- App -->
+    <div id="app">
+      <iframe id="appFrame" src="/calculator.html" style="visibility:hidden;"></iframe>
+    </div>
+
+    <script>
+      // Hide splash after 3s, reveal app
+      
+      // Splash + Login Gate
+      window.addEventListener("load", () => {
+        const modal = document.getElementById("loginModal");
+        const emailEl = document.getElementById("loginEmail");
+        const pinEl = document.getElementById("loginPin");
+        const errEl = document.getElementById("loginErr");
+        const iframe = document.getElementById("appFrame");
+
+        const getAuth = () => {
+          try { return JSON.parse(localStorage.getItem("cryo_auth") || "null"); } catch { return null; }
+        };
+        const setAuth = (email, pin) => {
+          localStorage.setItem("cryo_auth", JSON.stringify({ email, pin, ts: Date.now() }));
+        };
+
+        const showErr = (msg) => {
+          if (!errEl) return;
+          errEl.textContent = msg;
+          errEl.style.display = "";
+        };
+        const hideErr = () => {
+          if (!errEl) return;
+          errEl.style.display = "none";
+        };
+
+        // Always finish splash quickly (app loads), but lock Save + History behind login
+        setTimeout(() => document.body.classList.add("splash-done"), 300);
+
+        const auth = getAuth();
+        if (auth && auth.email && auth.pin) {
+          if (iframe) iframe.style.visibility = "visible";
+          return;
+        }
+
+        if (iframe) iframe.style.visibility = "visible";
+        if (modal) modal.style.display = "flex";
+
+        if (pinEl) {
+          pinEl.addEventListener("input", () => {
+            pinEl.value = (pinEl.value || "").replace(/\D+/g, "").slice(0, 6);
+          });
+        }
+
+        document.getElementById("loginBtn")?.addEventListener("click", () => {
+          hideErr();
+          const email = (emailEl?.value || "").trim();
+          const pin = (pinEl?.value || "").trim();
+
+          if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+            showErr("Enter a valid email.");
+            return;
+          }
+          if (!/^\d{6}$/.test(pin)) {
+            showErr("PIN must be 6 digits.");
+            return;
+          }
+
+          setAuth(email, pin);
+          if (modal) modal.style.display = "none";
+          if (iframe) iframe.src = iframe.src;
+        });
+
+        document.getElementById("loginSkip")?.addEventListener("click", () => {
+          if (modal) modal.style.display = "none";
+        });
+      });
+</script>
+  
+  <!-- ===== Login Modal (Email + 6-digit PIN) ===== -->
+  <div id="loginModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.65); z-index:9999; align-items:center; justify-content:center; padding:20px;">
+    <div style="width:min(420px, 100%); background:#0b1220; border:1px solid rgba(255,255,255,.12); border-radius:16px; padding:18px; box-shadow:0 10px 30px rgba(0,0,0,.45);">
+      <div style="font-size:18px; font-weight:700; margin-bottom:10px;">Login</div>
+      <div class="muted" style="margin-bottom:14px;">Enter your email and 6-digit PIN to unlock Save + History.</div>
+
+      <label class="muted" style="display:block; margin-bottom:6px;">Email</label>
+      <input id="loginEmail" type="email" placeholder="you@email.com" style="width:100%; margin-bottom:12px;" />
+
+      <label class="muted" style="display:block; margin-bottom:6px;">PIN (6 digits)</label>
+      <input id="loginPin" type="password" inputmode="numeric" placeholder="••••••" style="width:100%; margin-bottom:14px;" maxlength="6" />
+
+      <div id="loginErr" class="err" style="display:none; margin-bottom:10px;"></div>
+
+      <div style="display:flex; gap:10px; justify-content:flex-end;">
+        <button id="loginSkip" type="button" class="btn-clear">Continue as Guest</button>
+        <button id="loginBtn" type="button" class="btn-primary">Login</button>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

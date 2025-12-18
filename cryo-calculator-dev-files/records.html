@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cryo Calculator - Records</title>
+  <style>
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#0b1220;color:#e9eefc}
+    .wrap{max-width:980px;margin:0 auto;padding:18px}
+    .card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.10);border-radius:16px;padding:14px;box-shadow:0 10px 25px rgba(0,0,0,.35)}
+    h1{font-size:20px;margin:0 0 8px}
+    .muted{opacity:.75;font-size:13px}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between;margin:10px 0}
+    button{border:0;border-radius:12px;padding:10px 12px;font-weight:700;cursor:pointer}
+    .btn{background:#2563eb;color:white}
+    .ghost{background:transparent;border:1px solid rgba(255,255,255,.18);color:#e9eefc}
+    table{width:100%;border-collapse:collapse;margin-top:10px}
+    th,td{padding:10px;border-bottom:1px solid rgba(255,255,255,.10);text-align:left;font-size:13px;vertical-align:top}
+    th{font-size:12px;opacity:.85;text-transform:uppercase;letter-spacing:.04em}
+    .pill{display:inline-block;padding:2px 8px;border-radius:999px;background:rgba(37,99,235,.18);border:1px solid rgba(37,99,235,.25);font-size:12px}
+    .err{color:#fecaca;background:rgba(239,68,68,.14);border:1px solid rgba(239,68,68,.3);padding:10px;border-radius:12px;display:none}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="row" style="align-items:flex-start;">
+        <div>
+          <h1>Records</h1>
+          <div class="muted">Saved delivery / calculation events for your account.</div>
+          <div class="muted" id="who"></div>
+        </div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button class="ghost" type="button" onclick="window.open('calculator.html','_self')">← Back to Calculator</button>
+          <button class="ghost" id="btnPrint" type="button">Print</button>
+          <button class="btn" id="btnRefresh" type="button">Refresh</button>
+        </div>
+      </div>
+
+      <div class="err" id="errBox"></div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Page</th>
+            <th>Gas</th>
+            <th>Details</th>
+          </tr>
+        </thead>
+        <tbody id="rows">
+          <tr><td colspan="4" class="muted">No data loaded yet.</td></tr>
+        </tbody>
+      </table>
+      <div class="muted" style="margin-top:10px;">
+        Note: this uses your Google Sheets endpoint. If you haven't set it yet, open <span class="pill">calculator.html</span> and paste your Apps Script Web App URL into <b>SAVE_ENDPOINT</b>.
+      </div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  function getAuth(){
+    try { return JSON.parse(localStorage.getItem("cryo_auth") || "null"); } catch { return null; }
+  }
+  const auth = getAuth();
+  const who = document.getElementById("who");
+  who.textContent = auth?.email ? ("Logged in as: " + auth.email) : "Not logged in (no records).";
+
+  const errBox = document.getElementById("errBox");
+  const rowsEl = document.getElementById("rows");
+
+  // Must match calculator.html SAVE_ENDPOINT
+  const SAVE_ENDPOINT = "PASTE_YOUR_APPS_SCRIPT_WEBAPP_URL_HERE";
+
+  function showErr(msg){
+    errBox.textContent = msg;
+    errBox.style.display = "";
+  }
+  function clearErr(){ errBox.style.display = "none"; }
+
+  function esc(s){ return String(s ?? "").replace(/[&<>"]/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c])); }
+
+  function render(rows){
+    if (!rows || !rows.length){
+      rowsEl.innerHTML = '<tr><td colspan="4" class="muted">No saved records yet.</td></tr>';
+      return;
+    }
+    rowsEl.innerHTML = rows.map(r=>{
+      const ts = esc(r.ts || r.timestamp || "");
+      const page = esc(r.page || "");
+      const gas = esc(r.gas || "");
+      const details = esc(r.details || r.output || JSON.stringify(r).slice(0,250));
+      return `<tr>
+        <td>${ts}</td>
+        <td><span class="pill">${page}</span></td>
+        <td>${gas}</td>
+        <td style="white-space:pre-wrap;">${details}</td>
+      </tr>`;
+    }).join("");
+  }
+
+  async function load(){
+    clearErr();
+    if (!auth?.email){
+      render([]);
+      return;
+    }
+    if (!SAVE_ENDPOINT || SAVE_ENDPOINT.includes("PASTE_YOUR")){
+      showErr("SAVE_ENDPOINT not set. Paste your Apps Script Web App URL into records.html (and calculator.html).");
+      return;
+    }
+    const url = SAVE_ENDPOINT + "?email=" + encodeURIComponent(auth.email);
+    const res = await fetch(url);
+    const data = await res.json().catch(()=>null);
+    if (!res.ok || !data || data.ok === false){
+      showErr((data && data.error) ? data.error : "Failed to load records.");
+      return;
+    }
+    render(data.rows || []);
+  }
+
+  document.getElementById("btnRefresh").addEventListener("click", load);
+  document.getElementById("btnPrint").addEventListener("click", () => window.print());
+
+  load();
+})();
+</script>
+</body>
+</html>
