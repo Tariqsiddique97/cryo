@@ -106,12 +106,12 @@
 
     <!-- App -->
     <div id="app">
-      <iframe id="appFrame" src="/calculator.html" style="visibility:hidden;"></iframe>
+      <iframe id="appFrame" src="/calculator.html" style="visibility: hidden"></iframe>
     </div>
 
     <script>
       // API Configuration
-      const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbwIWol7vhD17iQ1f7fdVtOWrAR0RuFelGMYM6jpooD-rOkgDL1wdtlYZr0IoZmrDg0M/exec";
+      const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbwvTCGSlQIX1mDablMwmwWlLwBCYFc0KePOZQ3TASUXF1GLQrXsuq9o5x1_of46Xwpx/exec";
 
       // Splash + Login Gate
       window.addEventListener("load", () => {
@@ -123,7 +123,11 @@
         const loginBtn = document.getElementById("loginBtn");
 
         const getAuth = () => {
-          try { return JSON.parse(localStorage.getItem("cryo_auth") || "null"); } catch { return null; }
+          try {
+            return JSON.parse(localStorage.getItem("cryo_auth") || "null");
+          } catch {
+            return null;
+          }
         };
         const setAuth = (authData) => {
           localStorage.setItem("cryo_auth", JSON.stringify(authData));
@@ -186,11 +190,12 @@
           loginBtn.textContent = "Logging in...";
 
           try {
-            // Call the backend login API
+            // Call the backend login API using POST with text/plain to avoid CORS preflight
+            console.log("calling API ");
             const response = await fetch(API_ENDPOINT, {
               method: "POST",
               headers: {
-                "Content-Type": "application/json"
+                "Content-Type": "text/plain"
               },
               body: JSON.stringify({
                 action: "login",
@@ -201,6 +206,7 @@
             });
 
             const data = await response.json();
+            console.log(data, "data");
 
             if (!data.ok || !data.auth) {
               showErr(data.error || "Login failed. Please check your credentials.");
@@ -214,7 +220,6 @@
 
             if (modal) modal.style.display = "none";
             if (iframe) iframe.src = iframe.src; // Reload iframe to pick up new auth
-
           } catch (err) {
             console.error("Login error:", err);
             showErr("Network error. Please check your connection and try again.");
@@ -227,28 +232,48 @@
           if (modal) modal.style.display = "none";
         });
       });
-</script>
-  
-  <!-- ===== Login Modal (Email + 6-digit PIN) ===== -->
-  <div id="loginModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.65); z-index:9999; align-items:center; justify-content:center; padding:20px;">
-    <div style="width:min(420px, 100%); background:#0b1220; border:1px solid rgba(255,255,255,.12); border-radius:16px; padding:18px; box-shadow:0 10px 30px rgba(0,0,0,.45);">
-      <div style="font-size:18px; font-weight:700; margin-bottom:10px;">Login</div>
-      <div class="muted" style="margin-bottom:14px;">Enter your email and password to unlock Save + History.</div>
+    </script>
 
-      <label class="muted" style="display:block; margin-bottom:6px;">Email</label>
-      <input id="loginEmail" type="email" placeholder="you@email.com" style="width:100%; margin-bottom:12px;" />
+    <!-- ===== Login Modal (Email + 6-digit PIN) ===== -->
+    <div
+      id="loginModal"
+      style="
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.65);
+        z-index: 9999;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+      "
+    >
+      <div
+        style="
+          width: min(420px, 100%);
+          background: #0b1220;
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          border-radius: 16px;
+          padding: 18px;
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+        "
+      >
+        <div style="font-size: 18px; font-weight: 700; margin-bottom: 10px">Login</div>
+        <div class="muted" style="margin-bottom: 14px">Enter your email and password to unlock Save + History.</div>
 
-      <label class="muted" style="display:block; margin-bottom:6px;">Password</label>
-      <input id="loginPin" type="password" placeholder="Enter your password" style="width:100%; margin-bottom:14px;" />
+        <label class="muted" style="display: block; margin-bottom: 6px">Email</label>
+        <input id="loginEmail" type="email" placeholder="you@email.com" style="width: 100%; margin-bottom: 12px" />
 
-      <div id="loginErr" class="err" style="display:none; margin-bottom:10px;"></div>
+        <label class="muted" style="display: block; margin-bottom: 6px">Password</label>
+        <input id="loginPin" type="password" placeholder="Enter your password" style="width: 100%; margin-bottom: 14px" />
 
-      <div style="display:flex; gap:10px; justify-content:flex-end;">
-        <button id="loginSkip" type="button" class="btn-clear">Continue as Guest</button>
-        <button id="loginBtn" type="button" class="btn-primary">Login</button>
+        <div id="loginErr" class="err" style="display: none; margin-bottom: 10px"></div>
+
+        <div style="display: flex; gap: 10px; justify-content: flex-end">
+          <button id="loginSkip" type="button" class="btn-clear">Continue as Guest</button>
+          <button id="loginBtn" type="button" class="btn-primary">Login</button>
+        </div>
       </div>
     </div>
-  </div>
-
-</body>
+  </body>
 </html>

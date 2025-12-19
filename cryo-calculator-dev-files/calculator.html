@@ -152,6 +152,10 @@
         background: #1a73e8 !important;
         color: #fff;
       }
+      .btn-danger {
+        background: rgb(219, 84, 84) !important;
+        color: #fff;
+      }
       button:disabled {
         opacity: 0.6;
       }
@@ -880,6 +884,7 @@
     <div class="sticky-actions">
       <button id="resClear" class="btn-primary" type="button">Clear</button>
       <button class="btn-ghost" type="button" onclick="window.goToCalc()">← Home</button>
+      <button id="logout" class="btn-danger" type="button" >Logout</button>
     </div>
   </div>
 </section>
@@ -2128,7 +2133,7 @@
         };
 
         /* ----- API Configuration ----- */
-        const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbwIWol7vhD17iQ1f7fdVtOWrAR0RuFelGMYM6jpooD-rOkgDL1wdtlYZr0IoZmrDg0M/exec";
+        const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbwvTCGSlQIX1mDablMwmwWlLwBCYFc0KePOZQ3TASUXF1GLQrXsuq9o5x1_of46Xwpx/exec";
 
         function getAuth() {
           try {
@@ -2174,10 +2179,12 @@
           btnSave.textContent = "Saving...";
 
           try {
+            // Use text/plain to avoid CORS preflight (no OPTIONS request)
+            // Apps Script will still parse JSON from the body
             const response = await fetch(API_ENDPOINT, {
               method: "POST",
               headers: {
-                "Content-Type": "application/json"
+                "Content-Type": "text/plain"
               },
               body: JSON.stringify({
                 action: "save",
@@ -3100,6 +3107,19 @@
                 localStorage.removeItem(STORAGE_PREFIX + id);
               } catch (e) {}
             });
+          });
+        }
+
+        const logoutBtn = document.getElementById("logout");
+        if (logoutBtn) {
+          logoutBtn.addEventListener("click", () => {
+            localStorage.removeItem("cryo_auth");
+            // Reload parent window (index.html) to show login modal
+            if (window.parent && window.parent !== window) {
+              window.parent.location.reload();
+            } else {
+              window.location.reload();
+            }
           });
         }
       })();

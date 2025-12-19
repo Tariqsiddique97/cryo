@@ -1,165 +1,249 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Cryo Calculator - Records</title>
-  <style>
-    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#0b1220;color:#e9eefc}
-    .wrap{max-width:980px;margin:0 auto;padding:18px}
-    .card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.10);border-radius:16px;padding:14px;box-shadow:0 10px 25px rgba(0,0,0,.35)}
-    h1{font-size:20px;margin:0 0 8px}
-    .muted{opacity:.75;font-size:13px}
-    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between;margin:10px 0}
-    button{border:0;border-radius:12px;padding:10px 12px;font-weight:700;cursor:pointer}
-    .btn{background:#2563eb;color:white}
-    .ghost{background:transparent;border:1px solid rgba(255,255,255,.18);color:#e9eefc}
-    table{width:100%;border-collapse:collapse;margin-top:10px}
-    th,td{padding:10px;border-bottom:1px solid rgba(255,255,255,.10);text-align:left;font-size:13px;vertical-align:top}
-    th{font-size:12px;opacity:.85;text-transform:uppercase;letter-spacing:.04em}
-    .pill{display:inline-block;padding:2px 8px;border-radius:999px;background:rgba(37,99,235,.18);border:1px solid rgba(37,99,235,.25);font-size:12px}
-    .err{color:#fecaca;background:rgba(239,68,68,.14);border:1px solid rgba(239,68,68,.3);padding:10px;border-radius:12px;display:none}
-  </style>
-</head>
-<body>
-  <div class="wrap">
-    <div class="card">
-      <div class="row" style="align-items:flex-start;">
-        <div>
-          <h1>Records</h1>
-          <div class="muted">Saved delivery / calculation events for your account.</div>
-          <div class="muted" id="who"></div>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cryo Calculator - Records</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+        background: #0b1220;
+        color: #e9eefc;
+      }
+      .wrap {
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 18px;
+      }
+      .card {
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 16px;
+        padding: 14px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
+      }
+      h1 {
+        font-size: 20px;
+        margin: 0 0 8px;
+      }
+      .muted {
+        opacity: 0.75;
+        font-size: 13px;
+      }
+      .row {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        margin: 10px 0;
+      }
+      button {
+        border: 0;
+        border-radius: 12px;
+        padding: 10px 12px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .btn {
+        background: #2563eb;
+        color: white;
+      }
+      .ghost {
+        background: transparent;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        color: #e9eefc;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+      }
+      th,
+      td {
+        padding: 10px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        text-align: left;
+        font-size: 13px;
+        vertical-align: top;
+      }
+      th {
+        font-size: 12px;
+        opacity: 0.85;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .pill {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: rgba(37, 99, 235, 0.18);
+        border: 1px solid rgba(37, 99, 235, 0.25);
+        font-size: 12px;
+      }
+      .err {
+        color: #fecaca;
+        background: rgba(239, 68, 68, 0.14);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        padding: 10px;
+        border-radius: 12px;
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="card">
+        <div class="row" style="align-items: flex-start">
+          <div>
+            <h1>Records</h1>
+            <div class="muted">Saved delivery / calculation events for your account.</div>
+            <div class="muted" id="who"></div>
+          </div>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap">
+            <button class="ghost" type="button" onclick="window.open('calculator.html','_self')">← Back to Calculator</button>
+            <button class="ghost" id="btnPrint" type="button">Print</button>
+            <button class="btn" id="btnRefresh" type="button">Refresh</button>
+          </div>
         </div>
-        <div style="display:flex; gap:10px; flex-wrap:wrap;">
-          <button class="ghost" type="button" onclick="window.open('calculator.html','_self')">← Back to Calculator</button>
-          <button class="ghost" id="btnPrint" type="button">Print</button>
-          <button class="btn" id="btnRefresh" type="button">Refresh</button>
+
+        <div class="err" id="errBox"></div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Page</th>
+              <th>Gas</th>
+              <th>Details</th>
+            </tr>
+          </thead>
+          <tbody id="rows">
+            <tr><td colspan="4" class="muted">No data loaded yet.</td></tr>
+          </tbody>
+        </table>
+        <div class="muted" style="margin-top: 10px">
+          Note: this uses your Google Sheets endpoint. If you haven't set it yet, open
+          <span class="pill">calculator.html</span>
+          and paste your Apps Script Web App URL into
+          <b>SAVE_ENDPOINT</b>
+          .
         </div>
-      </div>
-
-      <div class="err" id="errBox"></div>
-
-      <table>
-        <thead>
-          <tr>
-            <th>Time</th>
-            <th>Page</th>
-            <th>Gas</th>
-            <th>Details</th>
-          </tr>
-        </thead>
-        <tbody id="rows">
-          <tr><td colspan="4" class="muted">No data loaded yet.</td></tr>
-        </tbody>
-      </table>
-      <div class="muted" style="margin-top:10px;">
-        Note: this uses your Google Sheets endpoint. If you haven't set it yet, open <span class="pill">calculator.html</span> and paste your Apps Script Web App URL into <b>SAVE_ENDPOINT</b>.
       </div>
     </div>
-  </div>
 
-<script>
-(function(){
-  function getAuth(){
-    try { return JSON.parse(localStorage.getItem("cryo_auth") || "null"); } catch { return null; }
-  }
-  const auth = getAuth();
-  const who = document.getElementById("who");
-  who.textContent = auth?.email ? ("Logged in as: " + auth.email) : "Not logged in (no records).";
+    <script>
+      (function () {
+        function getAuth() {
+          try {
+            return JSON.parse(localStorage.getItem("cryo_auth") || "null");
+          } catch {
+            return null;
+          }
+        }
+        const auth = getAuth();
+        const who = document.getElementById("who");
+        who.textContent = auth?.email ? "Logged in as: " + auth.email : "Not logged in (no records).";
 
-  const errBox = document.getElementById("errBox");
-  const rowsEl = document.getElementById("rows");
+        const errBox = document.getElementById("errBox");
+        const rowsEl = document.getElementById("rows");
 
-  // API Endpoint
-  const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbwIWol7vhD17iQ1f7fdVtOWrAR0RuFelGMYM6jpooD-rOkgDL1wdtlYZr0IoZmrDg0M/exec";
+        // API Endpoint
+        const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbwvTCGSlQIX1mDablMwmwWlLwBCYFc0KePOZQ3TASUXF1GLQrXsuq9o5x1_of46Xwpx/exec";
 
-  function showErr(msg){
-    errBox.textContent = msg;
-    errBox.style.display = "";
-  }
-  function clearErr(){ errBox.style.display = "none"; }
+        function showErr(msg) {
+          errBox.textContent = msg;
+          errBox.style.display = "";
+        }
+        function clearErr() {
+          errBox.style.display = "none";
+        }
 
-  function esc(s){ return String(s ?? "").replace(/[&<>"]/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c])); }
+        function esc(s) {
+          return String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+        }
 
-  function render(allRecords){
-    if (!allRecords || allRecords.length === 0){
-      rowsEl.innerHTML = '<tr><td colspan="4" class="muted">No saved records yet.</td></tr>';
-      return;
-    }
-    rowsEl.innerHTML = allRecords.map(r=>{
-      const ts = esc(r.timestamp || "");
-      const type = esc(r.type || "calc");
-      const gas = esc(r.gas || "");
-      const details = esc(r.result_text || JSON.stringify(r).slice(0,250));
-      return `<tr>
+        function render(allRecords) {
+          if (!allRecords || allRecords.length === 0) {
+            rowsEl.innerHTML = '<tr><td colspan="4" class="muted">No saved records yet.</td></tr>';
+            return;
+          }
+          rowsEl.innerHTML = allRecords
+            .map((r) => {
+              const ts = esc(r.timestamp || "");
+              const type = esc(r.type || "calc");
+              const gas = esc(r.gas || "");
+              const details = esc(r.result_text || JSON.stringify(r).slice(0, 250));
+              return `<tr>
         <td>${ts}</td>
         <td><span class="pill">${type}</span></td>
         <td>${gas}</td>
         <td style="white-space:pre-wrap;">${details}</td>
       </tr>`;
-    }).join("");
-  }
+            })
+            .join("");
+        }
 
-  async function load(){
-    clearErr();
-    if (!auth?.token){
-      render([]);
-      showErr("Please login to view your records.");
-      return;
-    }
+        async function load() {
+          clearErr();
+          if (!auth?.token) {
+            render([]);
+            showErr("Please login to view your records.");
+            return;
+          }
 
-    try {
-      // Fetch all records from backend
-      const res = await fetch(API_ENDPOINT, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          action: "fetch",
-          type: "all",
-          token: auth.token,
-          limit: 100
-        }),
-        redirect: "follow"
-      });
+          try {
+            // Fetch all records from backend using POST with text/plain to avoid CORS preflight
+            const res = await fetch(API_ENDPOINT, {
+              method: "POST",
+              headers: {
+                "Content-Type": "text/plain",
+              },
+              body: JSON.stringify({
+                action: "fetch",
+                type: "all",
+                token: auth.token,
+                limit: 100,
+              }),
+              redirect: "follow",
+            });
 
-      const data = await res.json();
+            const data = await res.json();
 
-      if (!data.ok || !data.data){
-        showErr(data.error || "Failed to load records.");
-        return;
-      }
+            if (!data.ok || !data.data) {
+              showErr(data.error || "Failed to load records.");
+              return;
+            }
 
-      // Combine all record types
-      const allRecords = [];
+            // Combine all record types
+            const allRecords = [];
 
-      if (data.data.calc && data.data.calc.records) {
-        data.data.calc.records.forEach(r => allRecords.push({...r, type: "calc"}));
-      }
-      if (data.data.split && data.data.split.records) {
-        data.data.split.records.forEach(r => allRecords.push({...r, type: "split"}));
-      }
-      if (data.data.reserve && data.data.reserve.records) {
-        data.data.reserve.records.forEach(r => allRecords.push({...r, type: "reserve"}));
-      }
+            if (data.data.calc && data.data.calc.records) {
+              data.data.calc.records.forEach((r) => allRecords.push({ ...r, type: "calc" }));
+            }
+            if (data.data.split && data.data.split.records) {
+              data.data.split.records.forEach((r) => allRecords.push({ ...r, type: "split" }));
+            }
+            if (data.data.reserve && data.data.reserve.records) {
+              data.data.reserve.records.forEach((r) => allRecords.push({ ...r, type: "reserve" }));
+            }
 
-      // Sort by timestamp (newest first)
-      allRecords.sort((a, b) => String(b.timestamp || "").localeCompare(String(a.timestamp || "")));
+            // Sort by timestamp (newest first)
+            allRecords.sort((a, b) => String(b.timestamp || "").localeCompare(String(a.timestamp || "")));
 
-      render(allRecords);
+            render(allRecords);
+          } catch (err) {
+            console.error("Load error:", err);
+            showErr("Network error. Please check your connection.");
+          }
+        }
 
-    } catch (err) {
-      console.error("Load error:", err);
-      showErr("Network error. Please check your connection.");
-    }
-  }
+        document.getElementById("btnRefresh").addEventListener("click", load);
+        document.getElementById("btnPrint").addEventListener("click", () => window.print());
 
-  document.getElementById("btnRefresh").addEventListener("click", load);
-  document.getElementById("btnPrint").addEventListener("click", () => window.print());
-
-  load();
-})();
-</script>
-</body>
+        load();
+      })();
+    </script>
+  </body>
 </html>

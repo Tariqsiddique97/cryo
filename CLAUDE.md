@@ -16,23 +16,19 @@ The app is designed for:
 
 ## Repository Structure
 
-**Important**: The working directory is `/Users/xlmb02/Downloads/cryo/`, which contains both the app files in `cryo-calculator-dev-files/` subdirectory and documentation files at the root level.
+The app files are in `cryo-calculator-dev-files/` subdirectory; documentation files are at root level.
 
 ```
 cryo/
-├── CLAUDE.md                          - This file (project guidance)
-├── IMPLEMENTATION_SUMMARY.md          - API integration details
-├── GOOGLE_APPS_SCRIPT_SETUP.md        - Backend setup guide
-├── API_TEST_COMMANDS.md               - Testing reference
-└── cryo-calculator-dev-files/         - Main application folder
-    ├── index.html                     - Splash screen + login modal wrapper
-    ├── calculator.html                - Main app with 3 swipeable panes
-    ├── records.html                   - History view for saved records
-    ├── login.html                     - Simple launch page (rarely used)
-    ├── sw.js                          - Service worker for offline/caching
-    ├── manifest.webmanifest.txt       - PWA manifest (rename to .webmanifest for deployment)
-    ├── _headers.txt                   - Security headers (rename to _headers for deployment)
-    └── icons/                         - PWA icons (192, 512, maskable, apple-touch)
+├── cryo-calculator-dev-files/         - Main application folder
+│   ├── index.html                     - Splash screen + login modal wrapper
+│   ├── calculator.html                - Main app with 3 swipeable panes
+│   ├── records.html                   - History view for saved records
+│   ├── constant.js                    - Shared API endpoint (not yet imported by HTML files)
+│   ├── sw.js                          - Service worker for offline/caching
+│   ├── manifest.webmanifest.txt       - PWA manifest (rename to .webmanifest for deployment)
+│   └── _headers.txt                   - Security headers (rename to _headers for deployment)
+└── DEV DOCS/                          - Development documentation and drafts
 ```
 
 ## Architecture
@@ -112,16 +108,12 @@ The backend is a single `Code.gs` file deployed as a Web App. See `GOOGLE_APPS_S
 
 **API Endpoint Configuration:**
 
-The API endpoint is currently hardcoded in three files and must be updated for new deployments:
+The API endpoint is hardcoded in three files (and also in `constant.js` which is not yet imported):
 
 - `index.html:114` - `API_ENDPOINT` constant
 - `calculator.html:2131` - `API_ENDPOINT` constant
-- `records.html:74` - `API_ENDPOINT` constant
-
-Current value (example/test deployment):
-```javascript
-const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbw.../exec";
-```
+- `records.html:153` - `API_ENDPOINT` constant
+- `constant.js:1` - Shared constant file (created but not yet used)
 
 **Auth Storage:**
 ```javascript
@@ -136,72 +128,27 @@ localStorage.getItem("cryo_auth")
 
 ## Development Workflow
 
-### Testing Locally
-
-**Start a local server:**
+### Local Development
 ```bash
-# Python 3
+cd /Users/xlmb02/Downloads/cryo
 python -m http.server 8000
-
-# Python 2
-python -m SimpleHTTPServer 8000
-
-# Node.js (if http-server installed)
-npx http-server -p 8000
-
-# PHP
-php -S localhost:8000
+# Open http://localhost:8000/cryo-calculator-dev-files/
 ```
 
-Navigate to: `http://localhost:8000/cryo-calculator-dev-files/`
+The service worker requires HTTPS in production but works on `localhost`.
 
-**Important:**
-- The service worker requires HTTPS in production, but works on `localhost` for development
-- Always test from the `cryo-calculator-dev-files/` subdirectory
-
-**Test offline mode:**
-1. Load app in browser
-2. Open DevTools → Application → Service Workers
-3. Check "Offline" checkbox
-4. Reload page - should work from cache
-
-### PWA Installation Testing
-
-**iOS Safari:**
-- Open in Safari (not Chrome/Firefox)
-- Tap Share → Add to Home Screen
-- Icon should appear with correct splash screen on launch
-
-**Android Chrome:**
-- Should show "Add to Home Screen" prompt automatically
-- Or use Chrome menu → Install App
+### Offline Testing
+DevTools → Application → Service Workers → check "Offline" → reload page
 
 ### Deployment
 
-**Static Hosting (Netlify, Cloudflare Pages, etc.):**
+**Before deploying:**
+1. Rename `manifest.webmanifest.txt` → `manifest.webmanifest`
+2. Rename `_headers.txt` → `_headers` (for Netlify/Cloudflare)
+3. Increment cache versions in sw.js:2-3
+4. Update `API_ENDPOINT` in all files
 
-1. Upload entire `cryo-calculator-dev-files/` folder as the site root
-2. **CRITICAL**: Rename these files before deployment:
-   - `manifest.webmanifest.txt` → `manifest.webmanifest`
-   - `_headers.txt` → `_headers` (for Netlify/Cloudflare)
-3. Update service worker cache version in `sw.js:2-3` on each deploy:
-   ```javascript
-   const CACHE_STATIC = 'cryo-static-vX';   // Increment X
-   const CACHE_RUNTIME = 'cryo-runtime-vX'; // Increment X
-   ```
-4. Update `API_ENDPOINT` in all three files (index.html, calculator.html, records.html)
-
-**Backend Setup:**
-
-See `GOOGLE_APPS_SCRIPT_SETUP.md` for complete instructions. Summary:
-
-1. Create Google Sheet with required tabs (users, calc_records, split_records, reserve_records)
-2. Add header rows to each sheet
-3. Extensions → Apps Script → paste Code.gs
-4. Update `CONFIG.TOKEN_SECRET` to a long random string (never commit this!)
-5. Deploy as Web App (Execute as: Me, Access: Anyone with link)
-6. Copy Web App URL → update `API_ENDPOINT` in client files
-7. Run `adminCreateUser(email, password, role)` in script editor to create first user
+**Backend Setup:** See `GOOGLE_APPS_SCRIPT_SETUP.md`
 
 ## Important Patterns
 
@@ -239,50 +186,7 @@ Cache strategy (sw.js:48-91):
 - Velocity detection for flick gestures
 - Prevents default to avoid browser back/forward navigation
 
-## Calculation Accuracy Notes
-
-**Inches Measurement:**
-- "Full trycock inches" = vertical measurement at full column
-- Must be mapped to laydown position for horizontal cylinders
-- Requires accurate tank diameter
-- Checkbox option: "Estimate diameter from timer" (uses flow + time to back-calculate)
-
-**Timer Mode:**
-- Start/Stop timer built into calculator
-- Can use as cross-check or as primary measurement
-- "Use timer as primary" ignores inches for total, uses flow × time
-- Timer format: HH:MM:SS
-
-**Split Calculator Requirements:**
-- Must know total SCF from source
-- Each destination needs start/end inches + tank specs
-- Warns if sum of splits ≠ total SCF
-- All fields marked with * are required
-
-## Browser Compatibility
-
-**Supported:**
-- iOS Safari 12+ (primary target)
-- Chrome/Edge 80+ (Desktop + Android)
-- Firefox 75+
-
-**Service Worker:**
-- All modern browsers except iOS < 11.3
-
-**Required Features:**
-- CSS `env()` for safe-area-inset (notch support)
-- `localStorage` (no fallback)
-- Fetch API
-- ES6+ (arrow functions, const/let, template literals)
-
 ## Common Development Tasks
-
-### Start local development server
-```bash
-cd /Users/xlmb02/Downloads/cryo
-python -m http.server 8000
-# Open http://localhost:8000/cryo-calculator-dev-files/
-```
 
 ### Add a new gas type
 1. Update gas constants object in calculator.html:2124-2128
@@ -301,15 +205,10 @@ Edit `sw.js` fetch handler (sw.js:48-91):
 4. Create `goToNewPage()` helper function (follow pattern at calculator.html:2892-2894)
 
 ### Update API endpoint (for new backend deployment)
-Search and replace in all three files:
+Search and replace in all files with the endpoint:
 ```bash
-# Find current endpoint
-grep -n "API_ENDPOINT" cryo-calculator-dev-files/*.html
-
-# Files to update:
-# - index.html:114
-# - calculator.html:2131
-# - records.html:74
+grep -rn "API_ENDPOINT" cryo-calculator-dev-files/
+# Update: index.html:114, calculator.html:2131, records.html:153, constant.js:1
 ```
 
 ### Modify login requirements
@@ -318,20 +217,16 @@ grep -n "API_ENDPOINT" cryo-calculator-dev-files/*.html
 - Current: email + password validation
 
 ### Increment service worker version (for cache busting)
-```bash
-# Edit sw.js:2-3
-const CACHE_STATIC = 'cryo-static-v7';   # Increment number
-const CACHE_RUNTIME = 'cryo-runtime-v7'; # Must match
-```
+Edit sw.js:2-3 and increment the version number (currently v6).
 
 ## File References
 
 Key file locations for common edits:
 
 - **Gas constants**: calculator.html:2124-2128
-- **API endpoints**: index.html:114, calculator.html:2131, records.html:74
-- **Save function**: calculator.html:2142-2202
+- **API endpoints**: index.html:114, calculator.html:2131, records.html:153, constant.js:1
+- **Save function**: calculator.html:2142+
 - **Swipe navigation**: calculator.html:2892-2894 (helpers), 2905+ (touch handlers)
 - **Service worker cache versions**: sw.js:2-3
-- **Login modal**: index.html:170-224
+- **Login modal**: index.html
 - **Auth storage**: index.html:125-130, calculator.html:2133-2139
