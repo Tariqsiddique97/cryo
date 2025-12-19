@@ -669,6 +669,8 @@
             <div class="actions">
               <button class="btn-primary" type="button" onclick="calculate()">Calculate</button>
               <button class="btn-clear" type="button" onclick="clearForm()">Clear</button>
+              <button type="button" class="btn-ghost" onclick="saveCalculation()" id="btnSave">💾 Save</button>
+              <button type="button" class="btn-ghost" onclick="window.open('records.html','_blank')">📋 History</button>
               <button type="button" class="btn-primary" onclick="window.goToSplit()">→ Split</button>
             </div>
 
@@ -2123,6 +2125,83 @@
           LIN: { scfPerGal: 93.1, lbPerGal: 6.74, scfPerLb: 13.8 }, // Nitrogen
           LOX: { scfPerGal: 115.0, lbPerGal: 9.52, scfPerLb: 12.06 }, // Oxygen
           LAR: { scfPerGal: 87.3, lbPerGal: 9.4, scfPerLb: 9.3 }, // Argon
+        };
+
+        /* ----- API Configuration ----- */
+        const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbwIWol7vhD17iQ1f7fdVtOWrAR0RuFelGMYM6jpooD-rOkgDL1wdtlYZr0IoZmrDg0M/exec";
+
+        function getAuth() {
+          try {
+            return JSON.parse(localStorage.getItem("cryo_auth") || "null");
+          } catch {
+            return null;
+          }
+        }
+
+        /* ----- Save Calculation to Backend ----- */
+        window.saveCalculation = async function () {
+          const auth = getAuth();
+          const output = document.getElementById("output");
+          const btnSave = document.getElementById("btnSave");
+
+          if (!auth || !auth.token) {
+            alert("Please login to save records.\n\nReload the app and login with your credentials.");
+            return;
+          }
+
+          if (!output || !output.textContent || output.textContent.includes("Enter values")) {
+            alert("Please calculate something first before saving.");
+            return;
+          }
+
+          // Collect calculation data
+          const record = {
+            tank_type: document.getElementById("tankType")?.value || "",
+            full_inches: document.getElementById("fullInches")?.value || "",
+            start_inches: document.getElementById("startInches")?.value || "",
+            end_inches: document.getElementById("endInches")?.value || "",
+            capacity: document.getElementById("fullCap")?.value || "",
+            capacity_unit: document.getElementById("capUnit")?.value || "",
+            gas: document.getElementById("gas")?.value || "",
+            flow_value: document.getElementById("flowValue")?.value || "",
+            timer_elapsed: document.getElementById("elapsed")?.textContent || "",
+            result_text: output.textContent.substring(0, 1000), // Limit to 1000 chars
+            timestamp: new Date().toISOString()
+          };
+
+          // Disable button and show loading
+          btnSave.disabled = true;
+          btnSave.textContent = "Saving...";
+
+          try {
+            const response = await fetch(API_ENDPOINT, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({
+                action: "save",
+                type: "calc",
+                token: auth.token,
+                record: record
+              }),
+              redirect: "follow"
+            });
+
+            const data = await response.json();
+
+            if (data.ok) {
+              alert("✓ Calculation saved successfully!");
+            } else {
+              alert("Save failed: " + (data.error || "Unknown error"));
+            }
+          } catch (err) {
+            console.error("Save error:", err);
+            alert("Network error. Please check your connection.");
+          } finally {
+            btnSave.disabled = false;
+            btnSave.textContent = "💾 Save";
+          }
         };
 
         /* ----- UI: show/hide laydown-only fields ----- */

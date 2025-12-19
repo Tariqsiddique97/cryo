@@ -110,8 +110,9 @@
     </div>
 
     <script>
-      // Hide splash after 3s, reveal app
-      
+      // API Configuration
+      const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbwIWol7vhD17iQ1f7fdVtOWrAR0RuFelGMYM6jpooD-rOkgDL1wdtlYZr0IoZmrDg0M/exec";
+
       // Splash + Login Gate
       window.addEventListener("load", () => {
         const modal = document.getElementById("loginModal");
@@ -119,12 +120,13 @@
         const pinEl = document.getElementById("loginPin");
         const errEl = document.getElementById("loginErr");
         const iframe = document.getElementById("appFrame");
+        const loginBtn = document.getElementById("loginBtn");
 
         const getAuth = () => {
           try { return JSON.parse(localStorage.getItem("cryo_auth") || "null"); } catch { return null; }
         };
-        const setAuth = (email, pin) => {
-          localStorage.setItem("cryo_auth", JSON.stringify({ email, pin, ts: Date.now() }));
+        const setAuth = (authData) => {
+          localStorage.setItem("cryo_auth", JSON.stringify(authData));
         };
 
         const showErr = (msg) => {
@@ -141,37 +143,84 @@
         setTimeout(() => document.body.classList.add("splash-done"), 300);
 
         const auth = getAuth();
-        if (auth && auth.email && auth.pin) {
-          if (iframe) iframe.style.visibility = "visible";
-          return;
+        if (auth && auth.token && auth.email) {
+          // Check if token is expired
+          const now = Math.floor(Date.now() / 1000);
+          if (auth.exp && now < auth.exp) {
+            if (iframe) iframe.style.visibility = "visible";
+            return;
+          }
         }
 
         if (iframe) iframe.style.visibility = "visible";
         if (modal) modal.style.display = "flex";
 
+        // Allow enter key to submit
         if (pinEl) {
-          pinEl.addEventListener("input", () => {
-            pinEl.value = (pinEl.value || "").replace(/\D+/g, "").slice(0, 6);
+          pinEl.addEventListener("keypress", (e) => {
+            if (e.key === "Enter") document.getElementById("loginBtn")?.click();
+          });
+        }
+        if (emailEl) {
+          emailEl.addEventListener("keypress", (e) => {
+            if (e.key === "Enter") document.getElementById("loginBtn")?.click();
           });
         }
 
-        document.getElementById("loginBtn")?.addEventListener("click", () => {
+        document.getElementById("loginBtn")?.addEventListener("click", async () => {
           hideErr();
           const email = (emailEl?.value || "").trim();
-          const pin = (pinEl?.value || "").trim();
+          const password = (pinEl?.value || "").trim();
 
           if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
             showErr("Enter a valid email.");
             return;
           }
-          if (!/^\d{6}$/.test(pin)) {
-            showErr("PIN must be 6 digits.");
+          if (!password || password.length < 1) {
+            showErr("Password is required.");
             return;
           }
 
-          setAuth(email, pin);
-          if (modal) modal.style.display = "none";
-          if (iframe) iframe.src = iframe.src;
+          // Disable button and show loading
+          loginBtn.disabled = true;
+          loginBtn.textContent = "Logging in...";
+
+          try {
+            // Call the backend login API
+            const response = await fetch(API_ENDPOINT, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({
+                action: "login",
+                email: email,
+                password: password
+              }),
+              redirect: "follow"
+            });
+
+            const data = await response.json();
+
+            if (!data.ok || !data.auth) {
+              showErr(data.error || "Login failed. Please check your credentials.");
+              loginBtn.disabled = false;
+              loginBtn.textContent = "Login";
+              return;
+            }
+
+            // Save auth data (includes token, user_id, email, role, exp)
+            setAuth(data.auth);
+
+            if (modal) modal.style.display = "none";
+            if (iframe) iframe.src = iframe.src; // Reload iframe to pick up new auth
+
+          } catch (err) {
+            console.error("Login error:", err);
+            showErr("Network error. Please check your connection and try again.");
+            loginBtn.disabled = false;
+            loginBtn.textContent = "Login";
+          }
         });
 
         document.getElementById("loginSkip")?.addEventListener("click", () => {
@@ -184,13 +233,13 @@
   <div id="loginModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.65); z-index:9999; align-items:center; justify-content:center; padding:20px;">
     <div style="width:min(420px, 100%); background:#0b1220; border:1px solid rgba(255,255,255,.12); border-radius:16px; padding:18px; box-shadow:0 10px 30px rgba(0,0,0,.45);">
       <div style="font-size:18px; font-weight:700; margin-bottom:10px;">Login</div>
-      <div class="muted" style="margin-bottom:14px;">Enter your email and 6-digit PIN to unlock Save + History.</div>
+      <div class="muted" style="margin-bottom:14px;">Enter your email and password to unlock Save + History.</div>
 
       <label class="muted" style="display:block; margin-bottom:6px;">Email</label>
       <input id="loginEmail" type="email" placeholder="you@email.com" style="width:100%; margin-bottom:12px;" />
 
-      <label class="muted" style="display:block; margin-bottom:6px;">PIN (6 digits)</label>
-      <input id="loginPin" type="password" inputmode="numeric" placeholder="••••••" style="width:100%; margin-bottom:14px;" maxlength="6" />
+      <label class="muted" style="display:block; margin-bottom:6px;">Password</label>
+      <input id="loginPin" type="password" placeholder="Enter your password" style="width:100%; margin-bottom:14px;" />
 
       <div id="loginErr" class="err" style="display:none; margin-bottom:10px;"></div>
 

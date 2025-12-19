@@ -1,4 +1,4 @@
-Apps Script Code (single file: Code.gs)
+// Apps Script Code (single file: Code.gs)
 /************************************************************
  * Cryo Calculator - Google Sheets Backend (Apps Script)
  * Endpoints:
@@ -19,7 +19,7 @@ const CONFIG = {
   SHEET_ID: "",
 
   // REQUIRED: change this to a long random string.
-  TOKEN_SECRET: "CHANGE_ME_TO_A_LONG_RANDOM_SECRET",
+  TOKEN_SECRET: "mySecretKey_2024_xyz789abc123def456ghi789jkl012mno345pqr678stu901vwx234",
 
   // Session duration
   TOKEN_TTL_SECONDS: 60 * 60 * 24 * 7, // 7 days
@@ -33,6 +33,13 @@ const CONFIG = {
     AUDIT: "audit_log" // optional
   }
 };
+/** ====== CORS-Headers ====== **/
+// Handle OPTIONS preflight requests for CORS
+function doOptions(e) {
+  return ContentService
+    .createTextOutput("")
+    .setMimeType(ContentService.MimeType.TEXT);
+}
 
 /** ====== ROUTING ====== **/
 function doGet(e) {
@@ -316,24 +323,17 @@ function parseJsonBody_(e) {
   return JSON.parse(e.postData.contents);
 }
 
+/**
+ * Returns a JSON response
+ * Note: Apps Script doesn't support setHeader() on ContentService
+ * CORS is handled automatically when deployed as Web App with "Anyone with the link" access
+ */
 function jsonResponse(obj, httpStatus) {
-  // Apps Script doesn't let you set HTTP status directly for ContentService responses,
-  // but you can include it in payload; clients should rely on obj.ok + obj.error.
   const payload = Object.assign({}, obj, { status: httpStatus || 200 });
 
-  const output = ContentService
+  return ContentService
     .createTextOutput(JSON.stringify(payload))
     .setMimeType(ContentService.MimeType.JSON);
-
-  // CORS-ish headers (limited support in Apps Script, but harmless)
-  // Note: ContentService does not officially support setHeader in all deployments.
-  if (output.setHeader) {
-    output.setHeader("Access-Control-Allow-Origin", "*");
-    output.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
-    output.setHeader("Access-Control-Allow-Headers", "Content-Type");
-  }
-
-  return output;
 }
 
 function clampInt_(val, min, max, def) {
@@ -386,48 +386,60 @@ function adminCreateUser(email, password, role) {
   return { user_id: userId, email: cleanEmail, role: userRole };
 }
 
-Required Sheet Headers (Row 1)
+function createTestUser() {
+  const result = adminCreateUser("test@example.com", "123456", "user");
+  Logger.log(result);
+}
 
-Make sure each sheet has headers in row 1 (exact spelling matters).
+function createAnotherUser() {
+  const result = adminCreateUser("driver@company.com", "password123", "user");
+  Logger.log(result);
+}
 
-users
-user_id | email | password_hash | role | active | created_at
+// Required Sheet Headers (Row 1)
 
-calc_records
+// Make sure each sheet has headers in row 1 (exact spelling matters).
 
-Example minimal headers (add more columns if you want):
+// users
+// user_id | email | password_hash | role | active | created_at
 
-record_id | user_id | timestamp | tank_type | full_inches | start_inches | end_inches | capacity | capacity_unit | gas | flow_value | timer_elapsed | result_text | source
+// calc_records
 
-split_records
-record_id | user_id | timestamp | source_tank | destination | amount_scf | gas | notes | result_text | source
+// Example minimal headers (add more columns if you want):
 
-reserve_records
-record_id | user_id | timestamp | reserve_amount | gas | remaining | warning_flag | result_text | source
+// record_id | user_id | timestamp | tank_type | full_inches | start_inches | end_inches | capacity | capacity_unit | gas | flow_value | timer_elapsed | result_text | source
 
-audit_log (optional)
-timestamp | event_type | data_json
+// split_records
+// record_id | user_id | timestamp | source_tank | destination | amount_scf | gas | notes | result_text | source
 
-Deployment Steps (Literal)
+// reserve_records
+// record_id | user_id | timestamp | reserve_amount | gas | remaining | warning_flag | result_text | source
 
-Open Google Sheet → Extensions → Apps Script
+// audit_log (optional)
+// timestamp | event_type | data_json
 
-Paste the code above into Code.gs
+// Deployment Steps (Literal)
 
-Update:
+// Open Google Sheet → Extensions → Apps Script
 
-CONFIG.TOKEN_SECRET (must change)
+// Paste the code above into Code.gs
 
-CONFIG.SHEET_ID (optional; blank is fine if bound to the sheet)
+// Update:
 
-Click Deploy → New deployment
+// CONFIG.TOKEN_SECRET (must change)
 
-Select Web app
+// CONFIG.SHEET_ID (optional; blank is fine if bound to the sheet)
 
-Set:
+// Click Deploy → New deployment
 
-Execute as: Me
+// Select Web app
 
-Who has access: Anyone with the link
+// Set:
 
-Copy the Web App URL → this is what the client app will fetch().
+// Execute as: Me
+
+// Who has access: Anyone with the link
+
+// Copy the Web App URL → this is what the client app will fetch().
+// 
+

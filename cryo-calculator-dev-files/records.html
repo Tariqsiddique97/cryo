@@ -70,8 +70,8 @@
   const errBox = document.getElementById("errBox");
   const rowsEl = document.getElementById("rows");
 
-  // Must match calculator.html SAVE_ENDPOINT
-  const SAVE_ENDPOINT = "PASTE_YOUR_APPS_SCRIPT_WEBAPP_URL_HERE";
+  // API Endpoint
+  const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbwIWol7vhD17iQ1f7fdVtOWrAR0RuFelGMYM6jpooD-rOkgDL1wdtlYZr0IoZmrDg0M/exec";
 
   function showErr(msg){
     errBox.textContent = msg;
@@ -81,19 +81,19 @@
 
   function esc(s){ return String(s ?? "").replace(/[&<>"]/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c])); }
 
-  function render(rows){
-    if (!rows || !rows.length){
+  function render(allRecords){
+    if (!allRecords || allRecords.length === 0){
       rowsEl.innerHTML = '<tr><td colspan="4" class="muted">No saved records yet.</td></tr>';
       return;
     }
-    rowsEl.innerHTML = rows.map(r=>{
-      const ts = esc(r.ts || r.timestamp || "");
-      const page = esc(r.page || "");
+    rowsEl.innerHTML = allRecords.map(r=>{
+      const ts = esc(r.timestamp || "");
+      const type = esc(r.type || "calc");
       const gas = esc(r.gas || "");
-      const details = esc(r.details || r.output || JSON.stringify(r).slice(0,250));
+      const details = esc(r.result_text || JSON.stringify(r).slice(0,250));
       return `<tr>
         <td>${ts}</td>
-        <td><span class="pill">${page}</span></td>
+        <td><span class="pill">${type}</span></td>
         <td>${gas}</td>
         <td style="white-space:pre-wrap;">${details}</td>
       </tr>`;
@@ -102,22 +102,57 @@
 
   async function load(){
     clearErr();
-    if (!auth?.email){
+    if (!auth?.token){
       render([]);
+      showErr("Please login to view your records.");
       return;
     }
-    if (!SAVE_ENDPOINT || SAVE_ENDPOINT.includes("PASTE_YOUR")){
-      showErr("SAVE_ENDPOINT not set. Paste your Apps Script Web App URL into records.html (and calculator.html).");
-      return;
+
+    try {
+      // Fetch all records from backend
+      const res = await fetch(API_ENDPOINT, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          action: "fetch",
+          type: "all",
+          token: auth.token,
+          limit: 100
+        }),
+        redirect: "follow"
+      });
+
+      const data = await res.json();
+
+      if (!data.ok || !data.data){
+        showErr(data.error || "Failed to load records.");
+        return;
+      }
+
+      // Combine all record types
+      const allRecords = [];
+
+      if (data.data.calc && data.data.calc.records) {
+        data.data.calc.records.forEach(r => allRecords.push({...r, type: "calc"}));
+      }
+      if (data.data.split && data.data.split.records) {
+        data.data.split.records.forEach(r => allRecords.push({...r, type: "split"}));
+      }
+      if (data.data.reserve && data.data.reserve.records) {
+        data.data.reserve.records.forEach(r => allRecords.push({...r, type: "reserve"}));
+      }
+
+      // Sort by timestamp (newest first)
+      allRecords.sort((a, b) => String(b.timestamp || "").localeCompare(String(a.timestamp || "")));
+
+      render(allRecords);
+
+    } catch (err) {
+      console.error("Load error:", err);
+      showErr("Network error. Please check your connection.");
     }
-    const url = SAVE_ENDPOINT + "?email=" + encodeURIComponent(auth.email);
-    const res = await fetch(url);
-    const data = await res.json().catch(()=>null);
-    if (!res.ok || !data || data.ok === false){
-      showErr((data && data.error) ? data.error : "Failed to load records.");
-      return;
-    }
-    render(data.rows || []);
   }
 
   document.getElementById("btnRefresh").addEventListener("click", load);

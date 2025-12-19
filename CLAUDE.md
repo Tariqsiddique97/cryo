@@ -14,32 +14,35 @@ The app is designed for:
   2. **Split** - Splitting SCF loads between multiple destination tanks
   3. **Reserve** - Checking if tanks have sufficient reserve for deliveries
 
+## Repository Structure
+
+**Important**: The working directory is `/Users/xlmb02/Downloads/cryo/`, which contains both the app files in `cryo-calculator-dev-files/` subdirectory and documentation files at the root level.
+
+```
+cryo/
+├── CLAUDE.md                          - This file (project guidance)
+├── IMPLEMENTATION_SUMMARY.md          - API integration details
+├── GOOGLE_APPS_SCRIPT_SETUP.md        - Backend setup guide
+├── API_TEST_COMMANDS.md               - Testing reference
+└── cryo-calculator-dev-files/         - Main application folder
+    ├── index.html                     - Splash screen + login modal wrapper
+    ├── calculator.html                - Main app with 3 swipeable panes
+    ├── records.html                   - History view for saved records
+    ├── login.html                     - Simple launch page (rarely used)
+    ├── sw.js                          - Service worker for offline/caching
+    ├── manifest.webmanifest.txt       - PWA manifest (rename to .webmanifest for deployment)
+    ├── _headers.txt                   - Security headers (rename to _headers for deployment)
+    └── icons/                         - PWA icons (192, 512, maskable, apple-touch)
+```
+
 ## Architecture
-
-### Core Files Structure
-
-```
-cryo-calculator-dev-files/
-├── index.html           - Splash screen + login modal wrapper (loads calculator.html in iframe)
-├── calculator.html      - Main app with 3 swipeable panes (Calculator, Split, Reserve)
-├── records.html         - History view for saved records
-├── login.html          - Simple launch page (rarely used, redirects to index)
-├── sw.js               - Service worker for offline/caching
-├── manifest.webmanifest.txt - PWA manifest
-├── _headers.txt        - Security headers for deployment
-└── icons/              - PWA icons (192, 512, maskable, apple-touch)
-
-DEV DOCS/
-├── Apps Script Code.txt       - Google Sheets backend (Code.gs)
-├── shared JS file.txt         - Client-side API integration patterns
-├── Save Buttons.txt           - Integration examples
-└── google email script.txt    - Email notification setup
-```
 
 ### Application Flow
 
 1. **Entry Point**: `index.html` shows splash screen for 3s, then loads `calculator.html` in an iframe
-2. **Authentication**: Modal overlay prompts for email + 6-digit PIN (stored in `localStorage.cryo_auth`)
+2. **Authentication**: Modal overlay prompts for email + password
+   - Stored in `localStorage.cryo_auth` as `{user_id, email, role, token, exp}`
+   - Token expires after 7 days (configurable in backend)
 3. **Main App**: `calculator.html` contains all three calculators in a single file with swipe navigation
 4. **Data Persistence**:
    - Local-first: All records saved to localStorage immediately
@@ -49,23 +52,26 @@ DEV DOCS/
 ### Navigation System
 
 The app uses a custom swipe-based navigation with three horizontal panes:
-- Transform-based sliding: `translateX(-100vw)` for each pane
+- Transform-based sliding: `translateX(-100vw)` for each pane shift
 - Swipe gesture detection: Touch events with minimum 50px threshold
-- Page indicators: Dots at bottom show current position
-- Deep linking: `goToCalc()`, `goToSplit()`, `goToReserve()` functions for programmatic navigation
+- Page indicators: Dots at bottom show current position (calculator.html:82-97)
+- Deep linking: `goToCalc()`, `goToSplit()`, `goToReserve()` functions for programmatic navigation (calculator.html:2892-2894)
+- Implementation: Touch handlers at calculator.html:2905+ handle `touchstart`, `touchmove`, `touchend` events
 
 ### Key Calculation Logic (in calculator.html)
+
+**Gas Constants (calculator.html:2124-2128):**
+```javascript
+LIN: { scfPerGal: 93.1,  lbPerGal: 6.74, scfPerLb: 13.8  }  // Nitrogen
+LOX: { scfPerGal: 115.0, lbPerGal: 9.52, scfPerLb: 12.06 }  // Oxygen
+LAR: { scfPerGal: 87.3,  lbPerGal: 9.4,  scfPerLb: 9.3   }  // Argon
+```
 
 **Tank Geometry:**
 - Supports horizontal cylindrical and vertical cylindrical tanks
 - Converts "full trycock inches" (vertical measurement) to "laydown inches" (horizontal position in cylinder)
 - Uses cylinder diameter to map vertical height to volume
 - Formulas account for tank orientation and end-cap geometry
-
-**Gas Densities (used for SCF conversions):**
-- LIN: 6.75 lb/gal
-- LOX: 9.52 lb/gal
-- LAR: 11.6 lb/gal
 
 **Flow Calculations:**
 - Supports gallons/min or pounds/min input
@@ -81,7 +87,7 @@ The app uses a custom swipe-based navigation with three horizontal panes:
 
 ### Google Sheets Apps Script
 
-The backend is a single `Code.gs` file that provides:
+The backend is a single `Code.gs` file deployed as a Web App. See `GOOGLE_APPS_SCRIPT_SETUP.md` for complete setup instructions.
 
 **Endpoints:**
 - `GET ?action=ping` - Health check
@@ -104,17 +110,23 @@ The backend is a single `Code.gs` file that provides:
 
 ### Client-Side Integration
 
-**Configuration:**
+**API Endpoint Configuration:**
+
+The API endpoint is currently hardcoded in three files and must be updated for new deployments:
+
+- `index.html:114` - `API_ENDPOINT` constant
+- `calculator.html:2131` - `API_ENDPOINT` constant
+- `records.html:74` - `API_ENDPOINT` constant
+
+Current value (example/test deployment):
 ```javascript
-const SAVE_ENDPOINT = "PASTE_YOUR_APPS_SCRIPT_WEBAPP_URL_HERE";
+const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbw.../exec";
 ```
-This must be updated in both `calculator.html` and `records.html`.
 
 **Auth Storage:**
 ```javascript
 localStorage.getItem("cryo_auth")
-// → {email, pin, ts} (simplified client)
-// → {user_id, email, role, token, exp} (full backend)
+// → {user_id, email, role, token, exp}
 ```
 
 **Save Pattern:**
@@ -128,8 +140,11 @@ localStorage.getItem("cryo_auth")
 
 **Start a local server:**
 ```bash
-# Python
+# Python 3
 python -m http.server 8000
+
+# Python 2
+python -m SimpleHTTPServer 8000
 
 # Node.js (if http-server installed)
 npx http-server -p 8000
@@ -138,7 +153,11 @@ npx http-server -p 8000
 php -S localhost:8000
 ```
 
-**Important:** The service worker requires HTTPS in production, but works on `localhost` for development.
+Navigate to: `http://localhost:8000/cryo-calculator-dev-files/`
+
+**Important:**
+- The service worker requires HTTPS in production, but works on `localhost` for development
+- Always test from the `cryo-calculator-dev-files/` subdirectory
 
 **Test offline mode:**
 1. Load app in browser
@@ -160,27 +179,37 @@ php -S localhost:8000
 ### Deployment
 
 **Static Hosting (Netlify, Cloudflare Pages, etc.):**
-1. Upload entire `cryo-calculator-dev-files/` folder
-2. Ensure `_headers.txt` is renamed to `_headers` (check host requirements)
-3. Manifest file should be renamed from `.txt` to actual `.webmanifest`
-4. Update service worker cache version in `sw.js` on each deploy
+
+1. Upload entire `cryo-calculator-dev-files/` folder as the site root
+2. **CRITICAL**: Rename these files before deployment:
+   - `manifest.webmanifest.txt` → `manifest.webmanifest`
+   - `_headers.txt` → `_headers` (for Netlify/Cloudflare)
+3. Update service worker cache version in `sw.js:2-3` on each deploy:
+   ```javascript
+   const CACHE_STATIC = 'cryo-static-vX';   // Increment X
+   const CACHE_RUNTIME = 'cryo-runtime-vX'; // Increment X
+   ```
+4. Update `API_ENDPOINT` in all three files (index.html, calculator.html, records.html)
 
 **Backend Setup:**
+
+See `GOOGLE_APPS_SCRIPT_SETUP.md` for complete instructions. Summary:
+
 1. Create Google Sheet with required tabs (users, calc_records, split_records, reserve_records)
-2. Add header rows to each sheet (see Apps Script Code.txt for exact column names)
+2. Add header rows to each sheet
 3. Extensions → Apps Script → paste Code.gs
-4. Update `CONFIG.TOKEN_SECRET` to a long random string
+4. Update `CONFIG.TOKEN_SECRET` to a long random string (never commit this!)
 5. Deploy as Web App (Execute as: Me, Access: Anyone with link)
-6. Copy Web App URL → update `SAVE_ENDPOINT` in client files
+6. Copy Web App URL → update `API_ENDPOINT` in client files
 7. Run `adminCreateUser(email, password, role)` in script editor to create first user
 
 ## Important Patterns
 
 ### Authentication Flow
-- Guest mode: Can use calculator, but Save/History buttons are disabled
-- Logged in: Full access to Save + History features
-- Login check: `getAuth()` returns null if no auth or expired
-- No server session required - stateless JWT-style tokens
+- **Guest mode**: Can use calculator, but Save/History buttons are disabled
+- **Logged in**: Full access to Save + History features
+- **Login check**: `getAuth()` returns null if no auth or expired
+- **No server session required**: Stateless JWT-style tokens
 
 ### Record Structure
 All saved records include:
@@ -191,14 +220,20 @@ All saved records include:
 - Type-specific fields (tank params, gas, flow, results, etc.)
 
 ### Service Worker Updates
+
 When updating `sw.js`:
-1. Increment both `CACHE_STATIC` and `CACHE_RUNTIME` version numbers
-2. Old caches are automatically cleaned on activate
-3. New SW installs immediately (`skipWaiting()`) and claims clients
+1. Increment **both** `CACHE_STATIC` and `CACHE_RUNTIME` version numbers (sw.js:2-3)
+2. Old caches are automatically cleaned on activate (sw.js:31-42)
+3. New SW installs immediately via `skipWaiting()` and claims clients (sw.js:27, 41)
+
+Cache strategy (sw.js:48-91):
+- **HTML navigations**: Network-first, fallback to cached index for offline (sw.js:52-64)
+- **Same-origin static assets**: Stale-while-revalidate (sw.js:67-86)
+- **Cross-origin**: Pass through (sw.js:90)
 
 ### Swipe Navigation Implementation
 - Uses CSS transforms for 60fps performance
-- Panes are 100vw wide, container is 300vw
+- Panes are 100vw wide, container is 300vw (calculator.html:34-44)
 - Touch events: `touchstart` → `touchmove` → `touchend`
 - Threshold: 50px minimum swipe distance
 - Velocity detection for flick gestures
@@ -224,14 +259,6 @@ When updating `sw.js`:
 - Warns if sum of splits ≠ total SCF
 - All fields marked with * are required
 
-## File Naming Conventions
-
-Note: Several files have `.txt` extensions but are actually JSON/JS/manifest files:
-- `manifest.webmanifest.txt` → should be `.webmanifest`
-- `_headers.txt` → should be `_headers` (for Netlify/Cloudflare)
-
-This appears to be for easy editing/viewing during development.
-
 ## Browser Compatibility
 
 **Supported:**
@@ -243,28 +270,68 @@ This appears to be for easy editing/viewing during development.
 - All modern browsers except iOS < 11.3
 
 **Required Features:**
-- CSS env() for safe-area-inset (notch support)
-- localStorage (no fallback)
+- CSS `env()` for safe-area-inset (notch support)
+- `localStorage` (no fallback)
 - Fetch API
 - ES6+ (arrow functions, const/let, template literals)
 
-## Common Tasks
+## Common Development Tasks
 
-**Add a new gas type:**
-1. Add to `<select id="gas">` in calculator.html
-2. Add density to `GAS_DENSITY` object
-3. Update Apps Script sheet headers if storing gas-specific fields
+### Start local development server
+```bash
+cd /Users/xlmb02/Downloads/cryo
+python -m http.server 8000
+# Open http://localhost:8000/cryo-calculator-dev-files/
+```
 
-**Change cache strategy:**
-- Edit `sw.js` fetch handler (currently: stale-while-revalidate for assets, network-first for HTML)
+### Add a new gas type
+1. Update gas constants object in calculator.html:2124-2128
+2. Add new `<option>` to `<select id="gas">` dropdown
+3. Update Apps Script backend if storing gas-specific fields
 
-**Add new calculation page:**
+### Change cache strategy
+Edit `sw.js` fetch handler (sw.js:48-91):
+- Currently: stale-while-revalidate for assets, network-first for HTML
+- Modify `event.respondWith()` logic for different strategies
+
+### Add new calculation page
 1. Add new pane to `.panes` div in calculator.html
-2. Update swipe navigation max index
-3. Add dot indicator
-4. Create `goToNewPage()` helper function
+2. Update swipe navigation max index check
+3. Add dot indicator to hint section
+4. Create `goToNewPage()` helper function (follow pattern at calculator.html:2892-2894)
 
-**Modify login requirements:**
-- Client validation in `index.html` login modal
-- Backend logic in `handleLogin_()` in Apps Script
-- Current: email + password (though UI shows PIN for simplicity)
+### Update API endpoint (for new backend deployment)
+Search and replace in all three files:
+```bash
+# Find current endpoint
+grep -n "API_ENDPOINT" cryo-calculator-dev-files/*.html
+
+# Files to update:
+# - index.html:114
+# - calculator.html:2131
+# - records.html:74
+```
+
+### Modify login requirements
+- Client validation: `index.html:175-182` (login modal)
+- Backend logic: `handleLogin_()` in Apps Script Code.gs
+- Current: email + password validation
+
+### Increment service worker version (for cache busting)
+```bash
+# Edit sw.js:2-3
+const CACHE_STATIC = 'cryo-static-v7';   # Increment number
+const CACHE_RUNTIME = 'cryo-runtime-v7'; # Must match
+```
+
+## File References
+
+Key file locations for common edits:
+
+- **Gas constants**: calculator.html:2124-2128
+- **API endpoints**: index.html:114, calculator.html:2131, records.html:74
+- **Save function**: calculator.html:2142-2202
+- **Swipe navigation**: calculator.html:2892-2894 (helpers), 2905+ (touch handlers)
+- **Service worker cache versions**: sw.js:2-3
+- **Login modal**: index.html:170-224
+- **Auth storage**: index.html:125-130, calculator.html:2133-2139
