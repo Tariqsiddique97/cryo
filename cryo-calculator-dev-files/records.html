@@ -105,6 +105,7 @@
             <button class="ghost" type="button" onclick="window.open('calculator.html','_self')">← Back to Calculator</button>
             <button class="ghost" id="btnPrint" type="button">Print</button>
             <button class="btn" id="btnRefresh" type="button">Refresh</button>
+            <button class="btn" id="btnLogout" type="button" style="background: #dc2626; color: white">Logout</button>
           </div>
         </div>
 
@@ -241,6 +242,10 @@
 
         document.getElementById("btnRefresh").addEventListener("click", load);
         document.getElementById("btnPrint").addEventListener("click", () => window.print());
+        document.getElementById("btnLogout").addEventListener("click", () => {
+          localStorage.removeItem("cryo_auth");
+          window.location.href = "index.html";
+        });
 
         load();
       })();

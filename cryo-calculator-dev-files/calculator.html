@@ -674,8 +674,9 @@
               <button class="btn-primary" type="button" onclick="calculate()">Calculate</button>
               <button class="btn-clear" type="button" onclick="clearForm()">Clear</button>
               <button type="button" class="btn-ghost" onclick="saveCalculation()" id="btnSave">💾 Save</button>
-              <button type="button" class="btn-ghost" onclick="window.open('records.html','_blank')">📋 History</button>
+              <button type="button" class="btn-ghost" onclick="window.location.href='records.html?t=' + Date.now()" id="btnHistory">📋 History</button>
               <button type="button" class="btn-primary" onclick="window.goToSplit()">→ Split</button>
+              <button id="logoutCalc" class="btn-danger" type="button">Logout</button>
             </div>
 
             <div class="result" id="output">Enter values and tap Calculate.</div>
@@ -809,7 +810,9 @@
     <div class="sticky-actions">
       <button id="splitCalc" class="btn-primary" type="button" disabled>Calculate</button>
       <button id="splitClear" class="btn-clear" type="button">Clear</button>
+      <button type="button" class="btn-ghost" onclick="saveSplit()" id="btnSaveSplit">💾 Save</button>
       <button class="btn-ghost" type="button" onclick="window.goToReserve()">→ Reserve</button>
+      <button id="logoutSplit" class="btn-danger" type="button">Logout</button>
     </div>
   </div>
 </section>
@@ -883,6 +886,7 @@
 
     <div class="sticky-actions">
       <button id="resClear" class="btn-primary" type="button">Clear</button>
+      <button type="button" class="btn-ghost" onclick="saveReserve()" id="btnSaveReserve">💾 Save</button>
       <button class="btn-ghost" type="button" onclick="window.goToCalc()">← Home</button>
       <button id="logout" class="btn-danger" type="button" >Logout</button>
     </div>
@@ -2143,6 +2147,21 @@
           }
         }
 
+        /* ----- Hide Save and History buttons for guest users ----- */
+        (function hideButtonsForGuest() {
+          const auth = getAuth();
+          if (auth && auth.role === "guest") {
+            const btnSave = document.getElementById("btnSave");
+            const btnSaveSplit = document.getElementById("btnSaveSplit");
+            const btnSaveReserve = document.getElementById("btnSaveReserve");
+            const btnHistory = document.getElementById("btnHistory");
+            if (btnSave) btnSave.style.display = "none";
+            if (btnSaveSplit) btnSaveSplit.style.display = "none";
+            if (btnSaveReserve) btnSaveReserve.style.display = "none";
+            if (btnHistory) btnHistory.style.display = "none";
+          }
+        })();
+
         /* ----- Save Calculation to Backend ----- */
         window.saveCalculation = async function () {
           const auth = getAuth();
@@ -2208,6 +2227,145 @@
           } finally {
             btnSave.disabled = false;
             btnSave.textContent = "💾 Save";
+          }
+        };
+
+        /* ----- Save Split Calculation to Backend ----- */
+        window.saveSplit = async function () {
+          const auth = getAuth();
+          const btnSaveSplit = document.getElementById("btnSaveSplit");
+
+          if (!auth || !auth.token) {
+            alert("Please login to save records.\n\nReload the app and login with your credentials.");
+            return;
+          }
+
+          const t1SCF = document.getElementById("t1SCF")?.value || "";
+          const t2SCF = document.getElementById("t2SCF")?.value || "";
+
+          if (!t1SCF || !t2SCF || t1SCF === "0" || t2SCF === "0") {
+            alert("Please calculate the split first before saving.");
+            return;
+          }
+
+          // Collect split data matching Google Sheet columns:
+          // record_id, user_id, timestamp, source_tank, destination, amount_scf, gas, notes, result_text, source
+          const record = {
+            source_tank: document.getElementById("splitTotalSCF")?.value || "",
+            destination: "Tank1: " + t1SCF + " SCF, Tank2: " + t2SCF + " SCF",
+            amount_scf: document.getElementById("splitTotalSCF")?.value || "",
+            gas: document.getElementById("splitGas")?.value || "",
+            notes: "T1: " + (document.getElementById("t1Start")?.value || "0") + "-" + (document.getElementById("t1End")?.value || "0") + "in, " +
+                   "T2: " + (document.getElementById("t2Start")?.value || "0") + "-" + (document.getElementById("t2End")?.value || "0") + "in",
+            result_text: "Total: " + (document.getElementById("splitTotalSCF")?.value || "0") + " SCF → Tank1: " + t1SCF + " SCF, Tank2: " + t2SCF + " SCF",
+            timestamp: new Date().toISOString()
+          };
+
+          // Disable button and show loading
+          btnSaveSplit.disabled = true;
+          btnSaveSplit.textContent = "Saving...";
+
+          try {
+            const response = await fetch(API_ENDPOINT, {
+              method: "POST",
+              headers: {
+                "Content-Type": "text/plain"
+              },
+              body: JSON.stringify({
+                action: "save",
+                type: "split",
+                token: auth.token,
+                record: record
+              }),
+              redirect: "follow"
+            });
+
+            const data = await response.json();
+
+            if (data.ok) {
+              alert("✓ Split calculation saved successfully!");
+            } else {
+              alert("Save failed: " + (data.error || "Unknown error"));
+            }
+          } catch (err) {
+            console.error("Save error:", err);
+            alert("Network error. Please check your connection.");
+          } finally {
+            btnSaveSplit.disabled = false;
+            btnSaveSplit.textContent = "💾 Save";
+          }
+        };
+
+        /* ----- Save Reserve Calculation to Backend ----- */
+        window.saveReserve = async function () {
+          const auth = getAuth();
+          const btnSaveReserve = document.getElementById("btnSaveReserve");
+
+          if (!auth || !auth.token) {
+            alert("Please login to save records.\n\nReload the app and login with your credentials.");
+            return;
+          }
+
+          const remaining = document.getElementById("resRemaining")?.value || "";
+
+          if (!remaining || remaining === "0") {
+            alert("Please calculate the reserve first before saving.");
+            return;
+          }
+
+          // Collect reserve data matching Google Sheet columns:
+          // record_id, user_id, timestamp, reserve_amount, gas, remaining, warning_flag, result_text, source
+          const resAmount = document.getElementById("resAmount")?.value || "";
+          const resGas = document.getElementById("resGas")?.value || "";
+          const t1 = document.getElementById("resT1")?.value || "0";
+          const t2 = document.getElementById("resT2")?.value || "0";
+          const t3 = document.getElementById("resT3")?.value || "0";
+          const t4 = document.getElementById("resT4")?.value || "0";
+
+          const remainingNum = parseFloat(remaining) || 0;
+          const warningFlag = remainingNum < 0 ? "OVER" : (remainingNum < 1000 ? "LOW" : "OK");
+
+          const record = {
+            reserve_amount: resAmount,
+            gas: resGas,
+            remaining: remaining,
+            warning_flag: warningFlag,
+            result_text: "Amount: " + resAmount + " " + resGas + " → Tanks: " + t1 + "/" + t2 + "/" + t3 + "/" + t4 + " SCF → Remaining: " + remaining + " SCF",
+            timestamp: new Date().toISOString()
+          };
+
+          // Disable button and show loading
+          btnSaveReserve.disabled = true;
+          btnSaveReserve.textContent = "Saving...";
+
+          try {
+            const response = await fetch(API_ENDPOINT, {
+              method: "POST",
+              headers: {
+                "Content-Type": "text/plain"
+              },
+              body: JSON.stringify({
+                action: "save",
+                type: "reserve",
+                token: auth.token,
+                record: record
+              }),
+              redirect: "follow"
+            });
+
+            const data = await response.json();
+
+            if (data.ok) {
+              alert("✓ Reserve calculation saved successfully!");
+            } else {
+              alert("Save failed: " + (data.error || "Unknown error"));
+            }
+          } catch (err) {
+            console.error("Save error:", err);
+            alert("Network error. Please check your connection.");
+          } finally {
+            btnSaveReserve.disabled = false;
+            btnSaveReserve.textContent = "💾 Save";
           }
         };
 
@@ -3110,18 +3268,25 @@
           });
         }
 
+        // Logout function for all logout buttons
+        const handleLogout = () => {
+          localStorage.removeItem("cryo_auth");
+          // Reload parent window (index.html) to show login modal
+          if (window.parent && window.parent !== window) {
+            window.parent.location.reload();
+          } else {
+            window.location.reload();
+          }
+        };
+
+        // Add logout handler to all logout buttons
         const logoutBtn = document.getElementById("logout");
-        if (logoutBtn) {
-          logoutBtn.addEventListener("click", () => {
-            localStorage.removeItem("cryo_auth");
-            // Reload parent window (index.html) to show login modal
-            if (window.parent && window.parent !== window) {
-              window.parent.location.reload();
-            } else {
-              window.location.reload();
-            }
-          });
-        }
+        const logoutCalcBtn = document.getElementById("logoutCalc");
+        const logoutSplitBtn = document.getElementById("logoutSplit");
+
+        if (logoutBtn) logoutBtn.addEventListener("click", handleLogout);
+        if (logoutCalcBtn) logoutCalcBtn.addEventListener("click", handleLogout);
+        if (logoutSplitBtn) logoutSplitBtn.addEventListener("click", handleLogout);
       })();
     </script>
     <!-- === SCRIPTS: LOCALSTORAGE PERSISTENCE END === -->

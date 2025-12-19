@@ -229,7 +229,17 @@
         });
 
         document.getElementById("loginSkip")?.addEventListener("click", () => {
+          // Create dummy guest user (no API call)
+          const guestAuth = {
+            user_id: "guest-" + Date.now(),
+            email: "guest@cryo-calculator.local",
+            role: "guest",
+            token: "guest-token-" + Date.now(),
+            exp: Math.floor(Date.now() / 1000) + (60 * 60 * 24 * 7) // 7 days from now
+          };
+          setAuth(guestAuth);
           if (modal) modal.style.display = "none";
+          if (iframe) iframe.src = iframe.src; // Reload iframe to pick up new auth
         });
       });
     </script>
